@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SosmedPulse - Social Media & Trend Listening</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        .pulse-btn {
+            box-shadow: 0 4px 20px -2px rgba(225, 29, 72, 0.35);
+        }
+        @media print {
+            header, #searchSection, #loadingSection, footer, .no-print {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            .glass-card {
+                border: 1px solid #ddd !important;
+                box-shadow: none !important;
+                break-inside: avoid;
+            }
+            #resultsSection {
+                display: block !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+    <!-- Header Navigation -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-red-500 flex items-center justify-center text-white shadow-md">
+                    <i data-lucide="radio" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-rose-600 to-red-600 bg-clip-text text-transparent">SosmedPulse</span>
+                    <span class="hidden sm:inline-block text-xs text-slate-400 ml-2 font-medium bg-slate-100 px-2 py-0.5 rounded-full">Media Intelligence Platform</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span id="headerEngineBadge">OpenRouter AI Active</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Search & Hero Section -->
+        <section id="searchSection" class="text-center max-w-3xl mx-auto mb-8 no-print">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-50 border border-rose-100 text-rose-600 text-xs font-semibold mb-3">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                <span>OpenRouter AI • Multi-Platform Social Intelligence</span>
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mb-3">
+                Analisis Tren & Sentimen Produk di Sosmed
+            </h1>
+            <p class="text-slate-500 text-sm sm:text-base mb-6">
+                Pantau percakapan publik di TikTok, Instagram, X/Twitter, YouTube, dan media berita secara real-time.
+            </p>
+
+            <!-- Search Form with Time Filter -->
+            <form id="analyzeForm" onsubmit="handleAnalyze(event); return false;" class="flex flex-col sm:flex-row gap-2 max-w-2xl mx-auto mb-3">
+                <div class="relative flex-1">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <i data-lucide="search" class="w-5 h-5"></i>
+                    </div>
+                    <input type="text" id="keywordInput" required placeholder="Ketik brand/produk: Skintific, iPhone 16, Spinotek..." 
+                        class="w-full pl-11 pr-4 py-3 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 text-slate-800 text-sm shadow-sm transition">
+                </div>
+                
+                <!-- Time Range Filter -->
+                <select id="timeRangeInput" class="px-3 py-3 bg-white border border-slate-300 rounded-xl text-slate-700 text-xs font-semibold focus:ring-2 focus:ring-rose-500 shadow-sm cursor-pointer">
+                    <option value="all">🕒 Semua Waktu</option>
+                    <option value="30d">📅 30 Hari Terakhir</option>
+                    <option value="7d">⚡ 7 Hari Terakhir</option>
+                    <option value="24h">🔥 24 Jam Terakhir</option>
+                </select>
+
+                <button type="submit" id="submitBtn" 
+                    class="px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-sm transition pulse-btn flex items-center justify-center gap-2">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    <span>Analisis</span>
+                </button>
+            </form>
+
+            <!-- Quick Suggestions -->
+            <div class="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500">
+                <span class="font-medium">Rekomendasi:</span>
+                <button type="button" onclick="quickSearch('Spinotek')" class="bg-white border border-slate-200 hover:border-rose-300 hover:text-rose-600 px-2.5 py-1 rounded-lg transition font-medium">Spinotek</button>
+                <button type="button" onclick="quickSearch('Skintific')" class="bg-white border border-slate-200 hover:border-rose-300 hover:text-rose-600 px-2.5 py-1 rounded-lg transition font-medium">Skintific</button>
+                <button type="button" onclick="quickSearch('iPhone 16')" class="bg-white border border-slate-200 hover:border-rose-300 hover:text-rose-600 px-2.5 py-1 rounded-lg transition font-medium">iPhone 16</button>
+                <button type="button" onclick="quickSearch('Indomie')" class="bg-white border border-slate-200 hover:border-rose-300 hover:text-rose-600 px-2.5 py-1 rounded-lg transition font-medium">Indomie</button>
+            </div>
+
+            <!-- Recent Searches Container -->
+            <div id="recentSearchesBar" class="hidden flex flex-wrap items-center justify-center gap-1.5 text-xs text-slate-400 mt-2">
+                <span>Riwayat:</span>
+                <div id="recentChips" class="flex flex-wrap gap-1"></div>
+            </div>
+        </section>
+
+        <!-- Loading State -->
+        <div id="loadingSection" class="hidden text-center py-16">
+            <div class="inline-block relative w-16 h-16 mb-4">
+                <div class="w-16 h-16 rounded-full border-4 border-rose-200 border-t-rose-600 animate-spin"></div>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-1" id="loadingTitle">Sedang Mengambil Percakapan...</h3>
+            <p class="text-xs text-slate-500" id="loadingSubtitle">Mengumpulkan data publik & menjalankan model sentimen NLP bahasa Indonesia.</p>
+        </div>
+
+        <!-- Dashboard Result Section -->
+        <div id="resultsSection" class="hidden space-y-6">
+
+            <!-- Title & Keyword Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+                <div>
+                    <span class="text-xs font-semibold text-rose-600 uppercase tracking-wider">Hasil Analisis Real-Time</span>
+                    <h2 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                        <span>Keyword:</span>
+                        <span id="displayKeyword" class="text-rose-600"></span>
+                    </h2>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="exportCSV()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-sm transition">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        <span>Ekspor CSV</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Metric Cards Grid -->
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="glass-card p-4 rounded-2xl shadow-sm border border-slate-100">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-medium">Total Mentions</span>
+                        <i data-lucide="message-square" class="w-4 h-4 text-slate-400"></i>
+                    </div>
+                    <div class="text-2xl font-extrabold text-slate-900" id="totalMentions">0</div>
+                    <div class="text-[11px] text-slate-400 mt-1">Percakapan terdeteksi</div>
+                </div>
+
+                <div class="glass-card p-4 rounded-2xl shadow-sm border border-slate-100">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-medium">Net Sentiment (NSS)</span>
+                        <i data-lucide="activity" class="w-4 h-4 text-indigo-400"></i>
+                    </div>
+                    <div class="text-2xl font-extrabold text-indigo-600" id="netSentimentScore">0</div>
+                    <div class="text-[11px] text-slate-400 mt-1">Skala: -100 s/d +100</div>
+                </div>
+
+                <div class="glass-card p-4 rounded-2xl shadow-sm border border-slate-100">
+                    <div class="flex items-center justify-between text-emerald-600 mb-2">
+                        <span class="text-xs font-medium">Sentimen Positif</span>
+                        <i data-lucide="smile" class="w-4 h-4 text-emerald-500"></i>
+                    </div>
+                    <div class="text-2xl font-extrabold text-emerald-600" id="positivePct">0%</div>
+                    <div class="text-[11px] text-slate-400 mt-1"><span id="positiveCount">0</span> postingan</div>
+                </div>
+
+                <div class="glass-card p-4 rounded-2xl shadow-sm border border-slate-100">
+                    <div class="flex items-center justify-between text-slate-600 mb-2">
+                        <span class="text-xs font-medium">Sentimen Netral</span>
+                        <i data-lucide="meh" class="w-4 h-4 text-slate-400"></i>
+                    </div>
+                    <div class="text-2xl font-extrabold text-slate-700" id="neutralPct">0%</div>
+                    <div class="text-[11px] text-slate-400 mt-1"><span id="neutralCount">0</span> postingan</div>
+                </div>
+
+                <div class="glass-card p-4 rounded-2xl shadow-sm border border-slate-100 col-span-2 lg:col-span-1">
+                    <div class="flex items-center justify-between text-rose-600 mb-2">
+                        <span class="text-xs font-medium">Sentimen Negatif</span>
+                        <i data-lucide="frown" class="w-4 h-4 text-rose-500"></i>
+                    </div>
+                    <div class="text-2xl font-extrabold text-rose-600" id="negativePct">0%</div>
+                    <div class="text-[11px] text-slate-400 mt-1"><span id="negativeCount">0</span> postingan</div>
+                </div>
+            </div>
+
+            <!-- PR Crisis & Reputation Alert Banner -->
+            <div id="crisisAlertBanner" class="p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm bg-emerald-50 border-emerald-200">
+                <div class="flex items-center gap-3">
+                    <div id="crisisIconBox" class="w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-100 text-emerald-600">
+                        <i data-lucide="shield-check" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Status Reputasi Brand:</span>
+                            <span id="crisisStatusText" class="text-xs font-extrabold text-emerald-700">Aman / Bebas Isu Kritis</span>
+                        </div>
+                        <p id="crisisAdviceText" class="text-xs text-slate-600 mt-0.5">Tidak terdeteksi isu penipuan, barang palsu, atau gelombang krisis signifikan.</p>
+                    </div>
+                </div>
+                <div id="crisisBadgesList" class="flex flex-wrap gap-1 text-[11px]"></div>
+            </div>
+
+            <!-- Aspect-Based Sentiment Analysis (ABSA 4 Pilar Bisnis) -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800">Analisis Sentimen per Aspek Bisnis (ABSA)</h3>
+                        <p class="text-xs text-slate-400">Kepuasan konsumen dipecah ke dalam 4 dimensi spesifik</p>
+                    </div>
+                    <span class="text-xs font-medium px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-600 border border-indigo-100">4 Pilar Dimensi</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Kualitas & Fitur -->
+                    <div class="glass-card p-4 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span>📦</span> Kualitas & Fitur
+                            </span>
+                            <span id="aspectStatus-kualitas" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Sangat Baik</span>
+                        </div>
+                        <div class="flex items-baseline justify-between mb-1.5">
+                            <span class="text-xl font-extrabold text-slate-900" id="aspectScore-kualitas">85%</span>
+                            <span class="text-[11px] text-slate-400" id="aspectMentions-kualitas">0 ulasan</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                            <div id="aspectBar-kualitas" class="bg-emerald-500 h-2 rounded-full transition-all duration-500" style="width: 85%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Harga & Nilai -->
+                    <div class="glass-card p-4 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span>💰</span> Harga & Value
+                            </span>
+                            <span id="aspectStatus-harga" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Cukup Baik</span>
+                        </div>
+                        <div class="flex items-baseline justify-between mb-1.5">
+                            <span class="text-xl font-extrabold text-slate-900" id="aspectScore-harga">70%</span>
+                            <span class="text-[11px] text-slate-400" id="aspectMentions-harga">0 ulasan</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                            <div id="aspectBar-harga" class="bg-indigo-500 h-2 rounded-full transition-all duration-500" style="width: 70%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Pengiriman & Kemasan -->
+                    <div class="glass-card p-4 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span>🚚</span> Pengiriman & Box
+                            </span>
+                            <span id="aspectStatus-pengiriman" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 border border-slate-200">Stabil</span>
+                        </div>
+                        <div class="flex items-baseline justify-between mb-1.5">
+                            <span class="text-xl font-extrabold text-slate-900" id="aspectScore-pengiriman">60%</span>
+                            <span class="text-[11px] text-slate-400" id="aspectMentions-pengiriman">0 ulasan</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                            <div id="aspectBar-pengiriman" class="bg-amber-500 h-2 rounded-full transition-all duration-500" style="width: 60%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Layanan CS -->
+                    <div class="glass-card p-4 rounded-2xl shadow-sm border border-slate-100">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                <span>💬</span> Pelayanan & CS
+                            </span>
+                            <span id="aspectStatus-layanan" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Sangat Baik</span>
+                        </div>
+                        <div class="flex items-baseline justify-between mb-1.5">
+                            <span class="text-xl font-extrabold text-slate-900" id="aspectScore-layanan">90%</span>
+                            <span class="text-[11px] text-slate-400" id="aspectMentions-layanan">0 ulasan</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                            <div id="aspectBar-layanan" class="bg-emerald-500 h-2 rounded-full transition-all duration-500" style="width: 90%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Executive Summary & Recommendation Banner Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <!-- AI Summary -->
+                <div class="lg:col-span-2 bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-5 text-white shadow-md flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="p-1 rounded bg-rose-500/20 text-rose-400">
+                                    <i data-lucide="bot" class="w-4 h-4"></i>
+                                </span>
+                                <h3 class="text-xs font-bold tracking-wider uppercase text-rose-400">Ringkasan Analisis AI Eksekutif</h3>
+                            </div>
+                            <span id="engineBadgeDisplay" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">OpenRouter AI</span>
+                        </div>
+                        <p id="aiSummaryText" class="text-slate-200 text-sm leading-relaxed font-normal">
+                            Memuat ringkasan wawasan...
+                        </p>
+                    </div>
+                    <div class="text-[11px] text-slate-400 mt-3 pt-3 border-t border-slate-700/50 flex items-center gap-1.5">
+                        <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>Dianalisis berbasis konteks percakapan konsumen aktual</span>
+                    </div>
+                </div>
+
+                <!-- Strategic Recommendation -->
+                <div class="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-2xl p-5 text-white shadow-md flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="p-1 rounded bg-indigo-500/20 text-indigo-300">
+                                <i data-lucide="lightbulb" class="w-4 h-4"></i>
+                            </span>
+                            <h3 class="text-xs font-bold tracking-wider uppercase text-indigo-300">Rekomendasi Bisnis Strategis</h3>
+                        </div>
+                        <p id="aiRecommendationText" class="text-indigo-100 text-xs sm:text-sm leading-relaxed font-normal">
+                            Memuat rekomendasi aksi bisnis...
+                        </p>
+                    </div>
+                    <div class="text-[11px] text-indigo-300/70 mt-3 pt-3 border-t border-indigo-800/40 flex items-center gap-1.5">
+                        <i data-lucide="trending-up" class="w-3.5 h-3.5 text-indigo-300"></i>
+                        <span>Saran aksi berbasis data sentimen publik</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Donut Chart: Sentiment Distribution -->
+                <div class="glass-card p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800 mb-1">Distribusi Sentimen</h3>
+                        <p class="text-xs text-slate-400 mb-4">Persentase sentimen percakapan</p>
+                    </div>
+                    <div class="relative flex items-center justify-center my-auto h-52">
+                        <canvas id="sentimentChart"></canvas>
+                    </div>
+                    <div class="flex justify-around text-center text-xs pt-4 border-t border-slate-100 text-slate-600 font-medium">
+                        <span class="text-emerald-600">● Positif</span>
+                        <span class="text-slate-500">● Netral</span>
+                        <span class="text-rose-600">● Negatif</span>
+                    </div>
+                </div>
+
+                <!-- Bar Chart: Channel Distribution -->
+                <div class="glass-card p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800 mb-1">Sebaran Saluran Media</h3>
+                        <p class="text-xs text-slate-400 mb-4">Asal platform penyebutan produk</p>
+                    </div>
+                    <div class="relative flex items-center justify-center my-auto h-52 w-full">
+                        <canvas id="channelChart"></canvas>
+                    </div>
+                    <div class="text-[11px] text-slate-400 text-center pt-2">
+                        Multi-channel monitoring
+                    </div>
+                </div>
+
+                <!-- Sentiment Drivers (Positive vs Negative) -->
+                <div class="glass-card p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800 mb-1">Pemicu Sentimen (Drivers)</h3>
+                        <p class="text-xs text-slate-400 mb-4">Kata kunci pemicu positif vs keluhan</p>
+                    </div>
+
+                    <div class="space-y-4 my-auto">
+                        <div>
+                            <span class="text-xs font-semibold text-emerald-700 flex items-center gap-1 mb-2">
+                                <i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i> Pujian Terbanyak:
+                            </span>
+                            <div id="posDriversList" class="flex flex-wrap gap-1.5">
+                                <span class="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md">-</span>
+                            </div>
+                        </div>
+                        <div class="pt-2 border-t border-slate-100">
+                            <span class="text-xs font-semibold text-rose-700 flex items-center gap-1 mb-2">
+                                <i data-lucide="thumbs-down" class="w-3.5 h-3.5"></i> Keluhan / Kritik:
+                            </span>
+                            <div id="negDriversList" class="flex flex-wrap gap-1.5">
+                                <span class="text-xs bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-md">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-[11px] text-slate-400 text-center pt-2">
+                        Ekstraksi leksikon NLP Indonesia
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trending Keywords Tag Cloud -->
+            <div class="glass-card p-5 rounded-2xl shadow-sm border border-slate-100">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800">Trending Keywords & Topik Populer</h3>
+                        <p class="text-xs text-slate-400">Kata-kata yang paling sering muncul bersamaan dengan produk</p>
+                    </div>
+                    <i data-lucide="hash" class="w-4 h-4 text-slate-400"></i>
+                </div>
+                <div id="keywordTagsContainer" class="flex flex-wrap gap-2 pt-2">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Feed & Comments List -->
+            <div class="glass-card rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800">Daftar Percakapan & Ulasan Publik</h3>
+                        <p class="text-xs text-slate-400">Hasil scraping langsung beserta label sentimen otomatis</p>
+                    </div>
+                    <!-- Filter Tabs -->
+                    <div class="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                        <button onclick="filterPosts('all')" id="tab-all" class="px-3 py-1.5 rounded-lg bg-white shadow-sm text-slate-800 transition">Semua</button>
+                        <button onclick="filterPosts('Positif')" id="tab-Positif" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-emerald-600 transition">Positif</button>
+                        <button onclick="filterPosts('Netral')" id="tab-Netral" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">Netral</button>
+                        <button onclick="filterPosts('Negatif')" id="tab-Negatif" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-rose-600 transition">Negatif</button>
+                    </div>
+                </div>
+
+                <!-- Feed Items List Container -->
+                <div id="postsListContainer" class="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
+                    <!-- Dynamic Post Items -->
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-200 mt-16 py-8 text-center text-xs text-slate-400">
+        <p>© 2026 SosmedPulse - Social Media & Trend Listening Prototype</p>
+    </footer>
+
+    <!-- App JavaScript Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+            renderRecentSearches();
+        });
+
+        let currentDataset = null;
+        let sentimentChartInstance = null;
+        let channelChartInstance = null;
+
+        function saveRecentSearch(kw) {
+            try {
+                let recents = JSON.parse(localStorage.getItem('sosmed_recent_searches') || '[]');
+                recents = recents.filter(item => item.toLowerCase() !== kw.toLowerCase());
+                recents.unshift(kw);
+                if (recents.length > 5) recents.pop();
+                localStorage.setItem('sosmed_recent_searches', JSON.stringify(recents));
+                renderRecentSearches();
+            } catch (e) {}
+        }
+
+        function renderRecentSearches() {
+            try {
+                const recents = JSON.parse(localStorage.getItem('sosmed_recent_searches') || '[]');
+                const bar = document.getElementById('recentSearchesBar');
+                const chips = document.getElementById('recentChips');
+                if (!recents || recents.length === 0) {
+                    if (bar) bar.classList.add('hidden');
+                    return;
+                }
+                if (bar) bar.classList.remove('hidden');
+                if (chips) {
+                    chips.innerHTML = recents.map(kw => 
+                        `<button type="button" onclick="quickSearch('${kw}')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-0.5 rounded-md font-medium transition">${kw}</button>`
+                    ).join('');
+                }
+            } catch (e) {}
+        }
+
+        function quickSearch(kw) {
+            document.getElementById('keywordInput').value = kw;
+            handleAnalyze();
+        }
+
+        async function handleAnalyze(e) {
+            if (e && e.preventDefault) {
+                e.preventDefault();
+            }
+            const keywordInput = document.getElementById('keywordInput');
+            const timeRangeInput = document.getElementById('timeRangeInput');
+            const keyword = keywordInput.value.trim();
+            const timeRange = timeRangeInput ? timeRangeInput.value : 'all';
+
+            if (!keyword) {
+                alert('Silakan masukkan nama produk atau kata kunci terlebih dahulu.');
+                return;
+            }
+
+            saveRecentSearch(keyword);
+
+            // Show Loading UI
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('loadingSection').classList.remove('hidden');
+            document.getElementById('submitBtn').disabled = true;
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keyword: keyword, time_range: timeRange })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Gagal menganalisis keyword (HTTP ' + response.status + ')');
+                }
+
+                const data = await response.json();
+                currentDataset = data;
+                renderDashboard(data);
+
+            } catch (err) {
+                console.error(err);
+                alert('Terjadi kesalahan saat memproses data: ' + err.message);
+            } finally {
+                document.getElementById('loadingSection').classList.add('hidden');
+                document.getElementById('submitBtn').disabled = false;
+            }
+        }
+
+        function renderDashboard(data) {
+            document.getElementById('displayKeyword').innerText = data.keyword;
+            document.getElementById('totalMentions').innerText = data.total_mentions;
+            
+            // Engine badge
+            if (data.engine_badge) {
+                const badge = document.getElementById('engineBadgeDisplay');
+                if (badge) badge.innerText = data.engine_badge;
+                const headerBadge = document.getElementById('headerEngineBadge');
+                if (headerBadge) headerBadge.innerText = data.engine_badge;
+            }
+
+            // Net Sentiment Score
+            const nssElem = document.getElementById('netSentimentScore');
+            nssElem.innerText = (data.net_sentiment_score > 0 ? '+' : '') + data.net_sentiment_score;
+            if (data.net_sentiment_score > 20) nssElem.className = "text-2xl font-extrabold text-emerald-600";
+            else if (data.net_sentiment_score < -10) nssElem.className = "text-2xl font-extrabold text-rose-600";
+            else nssElem.className = "text-2xl font-extrabold text-slate-700";
+
+            document.getElementById('positivePct').innerText = data.sentiment_percentages.Positif + '%';
+            document.getElementById('positiveCount').innerText = data.sentiment_counts.Positif;
+
+            document.getElementById('neutralPct').innerText = data.sentiment_percentages.Netral + '%';
+            document.getElementById('neutralCount').innerText = data.sentiment_counts.Netral;
+
+            document.getElementById('negativePct').innerText = data.sentiment_percentages.Negatif + '%';
+            document.getElementById('negativeCount').innerText = data.sentiment_counts.Negatif;
+
+            // Render Crisis Alert
+            renderCrisisAlert(data.crisis_alert);
+
+            // Render Aspect-Based Sentiment
+            renderAspectSentiments(data.aspect_sentiments);
+
+            // AI Summary & Recommendation
+            document.getElementById('aiSummaryText').innerText = data.ai_summary;
+            const recElem = document.getElementById('aiRecommendationText');
+            if (recElem) {
+                recElem.innerText = data.ai_recommendation || "Terus pantau tren ulasan konsumen secara berkala.";
+            }
+
+            // Render Charts
+            renderSentimentChart(data.sentiment_counts);
+            renderChannelChart(data.items);
+
+            // Render Drivers
+            renderDrivers(data.top_positive_drivers, data.top_negative_drivers);
+
+            // Render Keyword Tags
+            renderKeywordTags(data.top_keywords);
+
+            // Render Feed
+            renderPosts(data.items);
+
+            // Show results
+            document.getElementById('resultsSection').classList.remove('hidden');
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function renderCrisisAlert(crisis) {
+            if (!crisis) return;
+            const banner = document.getElementById('crisisAlertBanner');
+            const statusText = document.getElementById('crisisStatusText');
+            const adviceText = document.getElementById('crisisAdviceText');
+            const iconBox = document.getElementById('crisisIconBox');
+            const badgesList = document.getElementById('crisisBadgesList');
+
+            if (!banner) return;
+            statusText.innerText = crisis.status;
+            adviceText.innerText = crisis.advice;
+
+            if (crisis.level === 'danger') {
+                banner.className = "p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm bg-rose-50 border-rose-200";
+                iconBox.className = "w-9 h-9 rounded-xl flex items-center justify-center bg-rose-100 text-rose-600";
+                statusText.className = "text-xs font-extrabold text-rose-700";
+            } else if (crisis.level === 'warning') {
+                banner.className = "p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm bg-amber-50 border-amber-200";
+                iconBox.className = "w-9 h-9 rounded-xl flex items-center justify-center bg-amber-100 text-amber-600";
+                statusText.className = "text-xs font-extrabold text-amber-700";
+            } else {
+                banner.className = "p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm bg-emerald-50 border-emerald-200";
+                iconBox.className = "w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-100 text-emerald-600";
+                statusText.className = "text-xs font-extrabold text-emerald-700";
+            }
+
+            if (crisis.top_risks && crisis.top_risks.length > 0) {
+                badgesList.innerHTML = crisis.top_risks.map(r => 
+                    `<span class="px-2 py-0.5 rounded-md font-semibold bg-rose-100 text-rose-700 border border-rose-200">⚠️ ${r}</span>`
+                ).join('');
+            } else {
+                badgesList.innerHTML = `<span class="px-2 py-0.5 rounded-md font-medium text-emerald-700 bg-emerald-100/70">✓ Nol Kata Bahaya</span>`;
+            }
+        }
+
+        function renderAspectSentiments(aspects) {
+            if (!aspects) return;
+            const aspectKeys = ['kualitas', 'harga', 'pengiriman', 'layanan'];
+            aspectKeys.forEach(k => {
+                const item = aspects[k];
+                if (!item) return;
+
+                const scoreElem = document.getElementById('aspectScore-' + k);
+                const barElem = document.getElementById('aspectBar-' + k);
+                const statusElem = document.getElementById('aspectStatus-' + k);
+                const mentionsElem = document.getElementById('aspectMentions-' + k);
+
+                if (scoreElem) scoreElem.innerText = item.pos_rate + '%';
+                if (barElem) barElem.style.width = item.pos_rate + '%';
+                if (mentionsElem) mentionsElem.innerText = item.mentions + ' ulasan';
+
+                if (statusElem) {
+                    statusElem.innerText = item.status;
+                    if (item.status_color === 'emerald') {
+                        statusElem.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200";
+                        if (barElem) barElem.className = "bg-emerald-500 h-2 rounded-full transition-all duration-500";
+                    } else if (item.status_color === 'indigo') {
+                        statusElem.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200";
+                        if (barElem) barElem.className = "bg-indigo-500 h-2 rounded-full transition-all duration-500";
+                    } else if (item.status_color === 'rose') {
+                        statusElem.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200";
+                        if (barElem) barElem.className = "bg-rose-500 h-2 rounded-full transition-all duration-500";
+                    } else {
+                        statusElem.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200";
+                        if (barElem) barElem.className = "bg-slate-400 h-2 rounded-full transition-all duration-500";
+                    }
+                }
+            });
+        }
+
+        function renderSentimentChart(counts) {
+            const ctx = document.getElementById('sentimentChart').getContext('2d');
+            if (sentimentChartInstance) sentimentChartInstance.destroy();
+
+            sentimentChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Positif', 'Netral', 'Negatif'],
+                    datasets: [{
+                        data: [counts.Positif, counts.Netral, counts.Negatif],
+                        backgroundColor: ['#10B981', '#94A3B8', '#F43F5E'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        function renderChannelChart(items) {
+            const ctx = document.getElementById('channelChart').getContext('2d');
+            if (channelChartInstance) channelChartInstance.destroy();
+
+            const channelCounts = {};
+            items.forEach(it => {
+                const ch = it.channel || 'Lainnya';
+                channelCounts[ch] = (channelCounts[ch] || 0) + 1;
+            });
+
+            const labels = Object.keys(channelCounts);
+            const values = Object.values(channelCounts);
+
+            channelChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Jumlah Mentions',
+                        data: values,
+                        backgroundColor: '#E11D48',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { display: false } },
+                        x: { grid: { display: false } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function renderDrivers(posDrivers, negDrivers) {
+            const posContainer = document.getElementById('posDriversList');
+            const negContainer = document.getElementById('negDriversList');
+
+            if (posDrivers && posDrivers.length > 0) {
+                posContainer.innerHTML = posDrivers.map(w => 
+                    `<span class="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md font-medium">✓ ${w}</span>`
+                ).join('');
+            } else {
+                posContainer.innerHTML = `<span class="text-xs text-slate-400">Tidak ada kata dominan</span>`;
+            }
+
+            if (negDrivers && negDrivers.length > 0) {
+                negContainer.innerHTML = negDrivers.map(w => 
+                    `<span class="text-xs bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-md font-medium">✕ ${w}</span>`
+                ).join('');
+            } else {
+                negContainer.innerHTML = `<span class="text-xs text-slate-400">Tidak ada keluhan dominan</span>`;
+            }
+        }
+
+        function renderKeywordTags(keywords) {
+            const container = document.getElementById('keywordTagsContainer');
+            if (!keywords || keywords.length === 0) {
+                container.innerHTML = `<span class="text-xs text-slate-400">Tidak ada kata kunci populer.</span>`;
+                return;
+            }
+
+            container.innerHTML = keywords.map(kw => {
+                let badgeClass = "bg-slate-100 text-slate-700 hover:bg-slate-200";
+                if (kw.value >= 4) badgeClass = "bg-rose-100 text-rose-800 font-bold border border-rose-200";
+                else if (kw.value >= 2) badgeClass = "bg-indigo-50 text-indigo-700 font-semibold border border-indigo-100";
+
+                return `<span class="px-2.5 py-1 rounded-lg text-xs transition cursor-default flex items-center gap-1 ${badgeClass}">
+                    <span>#${kw.text}</span>
+                    <span class="text-[10px] opacity-70 bg-black/10 px-1.5 py-0.2 rounded-full">${kw.value}</span>
+                </span>`;
+            }).join('');
+        }
+
+        function renderPosts(items) {
+            const container = document.getElementById('postsListContainer');
+            if (!items || items.length === 0) {
+                container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">Tidak ada percakapan ditemukan.</div>`;
+                return;
+            }
+
+            container.innerHTML = items.map(it => {
+                let badgeStyle = "bg-slate-100 text-slate-600 border-slate-200";
+                let badgeIcon = "meh";
+                if (it.sentiment === 'Positif') {
+                    badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                    badgeIcon = "smile";
+                } else if (it.sentiment === 'Negatif') {
+                    badgeStyle = "bg-rose-50 text-rose-700 border-rose-200";
+                    badgeIcon = "frown";
+                }
+
+                return `
+                <div class="p-4 hover:bg-slate-50/80 transition post-item" data-sentiment="${it.sentiment}">
+                    <div class="flex items-center justify-between gap-2 mb-1.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+                                ${it.source}
+                            </span>
+                            <span class="text-xs text-slate-400">• ${it.date || 'Baru saja'}</span>
+                        </div>
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${badgeStyle}">
+                            ${it.sentiment}
+                        </span>
+                    </div>
+                    <h4 class="text-sm font-semibold text-slate-800 mb-1">
+                        <a href="${it.url}" target="_blank" class="hover:text-rose-600 transition flex items-center gap-1">
+                            <span>${it.title || 'Percakapan Publik'}</span>
+                            <i data-lucide="external-link" class="w-3 h-3 text-slate-400"></i>
+                        </a>
+                    </h4>
+                    <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                        ${it.content}
+                    </p>
+                </div>
+                `;
+            }).join('');
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        }
+
+        function filterPosts(sentiment) {
+            document.querySelectorAll('[id^="tab-"]').forEach(btn => {
+                btn.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition";
+            });
+            document.getElementById('tab-' + sentiment).className = "px-3 py-1.5 rounded-lg bg-white shadow-sm text-slate-800 font-bold transition";
+
+            const postItems = document.querySelectorAll('.post-item');
+            postItems.forEach(item => {
+                if (sentiment === 'all' || item.getAttribute('data-sentiment') === sentiment) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        function exportCSV() {
+            if (!currentDataset || !currentDataset.items) return;
+            const headers = ["Source", "Channel", "Sentiment", "Sentiment_Score", "Date", "Title", "Content", "URL"];
+            const rows = currentDataset.items.map(it => [
+                `"${(it.source || '').replace(/"/g, '""')}"`,
+                `"${(it.channel || '').replace(/"/g, '""')}"`,
+                `"${it.sentiment}"`,
+                it.sentiment_score,
+                `"${it.date}"`,
+                `"${(it.title || '').replace(/"/g, '""')}"`,
+                `"${(it.content || '').replace(/"/g, '""')}"`,
+                `"${it.url}"`
+            ]);
+
+            const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `sosmed_listening_${currentDataset.keyword.toLowerCase()}_export.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
